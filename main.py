@@ -2,6 +2,7 @@ from kivy.app import App
 from kivy.uix.button import Button
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
+from kivy.clock import Clock
 import paho.mqtt.client as mqtt
 
 class PetFeederApp(App):
@@ -9,18 +10,13 @@ class PetFeederApp(App):
         self.layout = BoxLayout(orientation='vertical')
 
         # Widget de imagem para representar o estado do compartimento
-        self.compartment_image = Image(source='empty.jpg')  # Substitua 'closed.png' pela imagem desejada
+        self.compartment_image = Image(source='empty.jpg')
         self.layout.add_widget(self.compartment_image)
 
-        # Botões para abrir e fechar o compartimento
+        # Botão para abrir o compartimento
         self.button_open = Button(text='Abrir Compartimento')
-        self.button_close = Button(text='Fechar Compartimento')
-
         self.button_open.bind(on_press=self.send_open_command)
-        self.button_close.bind(on_press=self.send_close_command)
-
         self.layout.add_widget(self.button_open)
-        self.layout.add_widget(self.button_close)
 
         # Configurar o cliente MQTT
         self.client = mqtt.Client()
@@ -33,9 +29,6 @@ class PetFeederApp(App):
     def send_open_command(self, instance):
         self.send_mqtt_command("abrir")
 
-    def send_close_command(self, instance):
-        self.send_mqtt_command("fechar")
-
     def send_mqtt_command(self, command):
         topic = "pet_feeder/control"
         self.client.publish(topic, command)
@@ -47,15 +40,14 @@ class PetFeederApp(App):
         print("Abrindo alimentador...")
 
         # Atualizar a imagem com base no estado do compartimento
-        if client.publish(topic="pet_feeder/control", payload="status", qos=1, retain=True):
-            print(client)
-            teste = True
-            if teste:
-                self.compartment_image.source = 'full.jpg'
-                teste = False
-            # Substitua 'open.png' pela imagem desejada quando o compartimento estiver aberto
-            else:
-                self.compartment_image.source = 'empty.jpg'  # Substitua 'closed.png' pela imagem desejada quando o compartimento estiver fechado
-            print(teste)
+        self.compartment_image.source = 'full.jpg'
+
+        # Agendar a reversão da imagem para o estado vazio após 5 segundos
+        Clock.schedule_once(self.restore_empty_image, 3)
+
+    def restore_empty_image(self, dt):
+        print("Fechando compartimento...")
+        self.compartment_image.source = 'empty.jpg'
+
 if __name__ == '__main__':
     PetFeederApp().run()
